@@ -2,6 +2,7 @@
 
 
 import datetime
+import logging
 import os
 import random
 import string
@@ -13,17 +14,51 @@ def total_seconds (td):
 
 
 def main ():
-    files = []
-    start = datetime.datetime.now()
-    print start, "Generating filenames in memory"
-    for i in xrange(int(sys.argv[1])):
-        files.append(''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(40)))
-    end = datetime.datetime.now()
-    print end, "Generated {0} filenames".format(len(files))
+    logging.basicConfig()
 
+    logging.debug("Generating filenames in memory")
+    filenames = list(generate_filenames(sys.argv[1]))
+    logging.debug("Generated {0} filenames".format(len(filenames)))
+
+    logging.debug("Ensuring directories")
+    directories = ensure_directories(filenames)
+    logging.debug("Ensured {0} directories".format(len(directories)))
+
+    logging.debug("Touching files")
+    seconds = count_seconds(lambda: touch_files(filenames))
+    rate = 1.0 * len(filenames) / seconds
+    logging.debug("Touched {0} files ({1}/sec)".format(len(filenames), rate))
+    print rate
+
+
+def count_seconds (func):
     start = datetime.datetime.now()
-    print start, "Ensuring directories"
-    prefixes = set(filename[:2] for filename in files)
+    func()
+    end = datetime.datetime.now()
+    return total_seconds(end - start)
+
+
+def touch_files (filenames):
+    for filename in filenames:
+        prefix, suffix = filename[:2], filename[2:]
+        touch_file(os.path.join(prefix, suffix))
+
+
+def touch_file (filename):
+    open(filename, 'a').close()
+
+
+def generate_filenames (num):
+    for _ in xrange(int(num)):
+        yield generate_filename()
+
+
+def generate_filename ():
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(40))
+
+
+def ensure_directories (filenames):
+    prefixes = set(filename[:2] for filename in filenames)
     for prefix in prefixes:
         try:
             os.mkdir(prefix)
@@ -32,16 +67,7 @@ def main ():
                 pass
             else:
                 raise
-    end = datetime.datetime.now()
-    print end, "Ensured {0} directories".format(len(prefixes))
-
-    start = datetime.datetime.now()
-    print start, "Touching files"
-    for filename in files:
-        prefix, suffix = filename[:2], filename[2:]
-        open(os.path.join(prefix, suffix), 'a').close()
-    end = datetime.datetime.now()
-    print end, "Touched {0} files ({1}/sec)".format(len(files), 1.0 * len(files) / total_seconds(end - start))
+    return prefixes
 
 
 if __name__ == '__main__':
