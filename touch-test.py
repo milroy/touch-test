@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 
+import argparse
 import datetime
 import logging
 import os
@@ -9,15 +10,19 @@ import string
 import sys
 
 
-def total_seconds (td):
-    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
+def parser ():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('files', type=int, help="number of files to touch")
+    return parser
 
 
 def main ():
     logging.basicConfig()
 
+    args = parser().parse_args()
+
     logging.debug("Generating filenames in memory")
-    filenames = list(generate_filenames(sys.argv[1]))
+    filenames = list(generate_filenames(args.files))
     logging.debug("Generated {0} filenames".format(len(filenames)))
 
     logging.debug("Ensuring directories")
@@ -26,8 +31,14 @@ def main ():
 
     logging.debug("Touching files")
     seconds = count_seconds(lambda: touch_files(filenames))
-    rate = 1.0 * len(filenames) / seconds
-    logging.debug("Touched {0} files ({1}/sec)".format(len(filenames), rate))
+    try:
+        rate = 1.0 * len(filenames) / seconds
+    except ZeroDivisionError:
+        rate = 1.0 * len(filenames)
+        logging.debug("Touched {0} files ({1} <1sec)".format(len(filenames), rate))
+    else:
+        logging.debug("Touched {0} files ({1}/sec)".format(len(filenames), rate))
+
     print rate
 
 
@@ -68,6 +79,10 @@ def ensure_directories (filenames):
             else:
                 raise
     return prefixes
+
+
+def total_seconds (td):
+    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
 
 
 if __name__ == '__main__':
