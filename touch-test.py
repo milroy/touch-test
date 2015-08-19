@@ -13,31 +13,39 @@ import sys
 def parser ():
     parser = argparse.ArgumentParser()
     parser.add_argument('files', type=int, help="number of files to touch")
+    parser.add_argument('-d', '--debug', action='store_true', help="turn on debug logging")
+    parser.set_defaults(debug=False)
     return parser
 
 
 def main ():
-    logging.basicConfig()
+    logging.basicConfig(format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    logger = logging.getLogger()    
 
     args = parser().parse_args()
 
-    logging.debug("Generating filenames in memory")
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
+    logger.debug("Generating filenames in memory")
     filenames = list(generate_filenames(args.files))
-    logging.debug("Generated {0} filenames".format(len(filenames)))
+    logger.debug("Generated {0} filenames".format(len(filenames)))
 
-    logging.debug("Ensuring directories")
+    logger.debug("Ensuring directories")
     directories = ensure_directories(filenames)
-    logging.debug("Ensured {0} directories".format(len(directories)))
+    logger.debug("Ensured {0} directories".format(len(directories)))
 
-    logging.debug("Touching files")
+    logger.debug("Touching files")
     seconds = count_seconds(lambda: touch_files(filenames))
     try:
         rate = 1.0 * len(filenames) / seconds
     except ZeroDivisionError:
         rate = 1.0 * len(filenames)
-        logging.debug("Touched {0} files ({1} <1sec)".format(len(filenames), rate))
+        logger.debug("Touched {0} files ({1} <1sec)".format(len(filenames), rate))
     else:
-        logging.debug("Touched {0} files ({1}/sec)".format(len(filenames), rate))
+        logger.debug("Touched {0} files ({1}/sec)".format(len(filenames), rate))
 
     print rate
 
