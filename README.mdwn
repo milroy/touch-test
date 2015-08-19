@@ -1,0 +1,16 @@
+# Metadata performance test for file create
+
+touch-test.py tests filesystem metadata performance by touching
+multiple files (actually an `open(path, 'a').close()`) in serial.
+
+## Example
+
+$ python touch-test.py 100000
+
+## Features
+
+* Generates random, 40-character filenames
+* Prevents single-directory overload by distributing files into a
+  prefix directory
+* Generates filenames in-memory to eliminate RNG bottlenecks
+* Creates distribution directories in advance
