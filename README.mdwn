@@ -5,7 +5,7 @@ multiple files (actually an `open(path, 'a').close()`) in serial.
 
 ## Example
 
-$ python touch-test.py 100000
+$ python touch-test.py -p 4 -f 100000
 
 ## Features
 

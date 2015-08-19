@@ -8,29 +8,22 @@ import os
 import random
 import string
 import sys
+import timeit
+from multiprocessing import Pool
 
 
 def parser ():
     parser = argparse.ArgumentParser()
-    parser.add_argument('files', type=int, help="number of files to touch")
+    parser.add_argument('-f', dest="files", type=int, help="number of files to touch per process")
+    parser.add_argument('-p', dest="processes", type=int, help="number of processes")
     parser.add_argument('-d', '--debug', action='store_true', help="turn on debug logging")
     parser.set_defaults(debug=False)
     return parser
 
 
-def main ():
-    logging.basicConfig(format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    logger = logging.getLogger()    
-
-    args = parser().parse_args()
-
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
-
+def do_test (numfiles):
     logger.debug("Generating filenames in memory")
-    filenames = list(generate_filenames(args.files))
+    filenames = list(generate_filenames(numfiles))
     logger.debug("Generated {0} filenames".format(len(filenames)))
 
     logger.debug("Ensuring directories")
@@ -39,22 +32,15 @@ def main ():
 
     logger.debug("Touching files")
     seconds = count_seconds(lambda: touch_files(filenames))
-    try:
-        rate = 1.0 * len(filenames) / seconds
-    except ZeroDivisionError:
-        rate = 1.0 * len(filenames)
-        logger.debug("Touched {0} files ({1} <1sec)".format(len(filenames), rate))
-    else:
-        logger.debug("Touched {0} files ({1}/sec)".format(len(filenames), rate))
 
-    print rate
+    return seconds
 
 
 def count_seconds (func):
-    start = datetime.datetime.now()
+    start = timeit.default_timer()
     func()
-    end = datetime.datetime.now()
-    return total_seconds(end - start)
+    end = timeit.default_timer()
+    return (end - start)
 
 
 def touch_files (filenames):
@@ -89,9 +75,34 @@ def ensure_directories (filenames):
     return prefixes
 
 
-def total_seconds (td):
-    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
-
-
 if __name__ == '__main__':
-    main()
+
+# In case this should be logged to file
+    logging.basicConfig(format="%(asctime)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    logger = logging.getLogger()    
+
+    args = parser().parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
+    filesperproc = args.files
+    numprocs = args.processes
+
+    p = Pool(numprocs)
+    
+    pstart = timeit.default_timer()
+    times = p.map(do_test, [filesperproc for i in range(numprocs)])
+    runtime = timeit.default_timer() - pstart
+
+    cpu_seconds = sum(times)
+    total_files = numprocs*filesperproc
+
+    total_rate = total_files / runtime
+
+    print "Seconds per process: {}".format(times)
+    print "Total time to write {0} files: {1} CPU wallclock seconds".format(total_files, cpu_seconds)
+    print "Actual time: {0} seconds, rate: {1} files/second".format(runtime, total_rate)
+    
